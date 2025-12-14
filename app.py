@@ -72,7 +72,7 @@ def index():
 <!DOCTYPE html>
 <html>
 <head>
-<title>URL Shortener</title>
+<title>URL Shortener by ExploitZ3r0</title>
 <style>
 body { background:#020617; font-family:Segoe UI; color:#e5e7eb; display:flex; justify-content:center; align-items:center; min-height:100vh; }
 .container { width:480px; background:#0f172a; padding:30px; border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.6); }
