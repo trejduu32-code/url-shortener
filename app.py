@@ -71,7 +71,7 @@ def index():
 <!DOCTYPE html>
 <html>
 <head>
-<title>URL Shortener</title>
+<title>URL Shortener by ExploitZ3r0</title>
 <style>
 body {
     background:#020617;
@@ -135,7 +135,7 @@ function copyText(text){
 <body>
 <div class="container">
 
-<h1>URL Shortener</h1>
+<h1>URL Shortener by ExploitZ3r0</h1>
 
 {% if error %}
 <div class="error">{{ error }}</div>
