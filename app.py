@@ -32,9 +32,23 @@ def is_expired(row):
         return datetime.strptime(row["expires_at"], "%Y-%m-%d %H:%M:%S") < datetime.now()
     return False
 
+# ---------------- AUTO CLEANUP ----------------
+def cleanup_expired_urls():
+    with sqlite3.connect(DB_NAME) as conn:
+        conn.execute("""
+            UPDATE urls
+            SET deleted = 1
+            WHERE expires_at IS NOT NULL
+            AND expires_at < CURRENT_TIMESTAMP
+            AND deleted = 0
+        """)
+        conn.commit()
+
 # ---------------- ROUTES ----------------
 @app.route("/", methods=["GET", "POST"])
 def index():
+    cleanup_expired_urls()  # 🔥 AUTO CLEANUP
+
     short_url = None
     error = None
 
@@ -80,14 +94,16 @@ def index():
         conn.row_factory = sqlite3.Row
         history = conn.execute("""
             SELECT * FROM urls
-            ORDER BY id DESC LIMIT 10
+            WHERE deleted = 0
+            ORDER BY id DESC
+            LIMIT 10
         """).fetchall()
 
     return render_template_string("""
 <!DOCTYPE html>
 <html>
 <head>
-<title>URL Shortener by ExploitZ3r0</title>
+<title>URL Shortener</title>
 <style>
 body {
     background:#020617;
@@ -148,24 +164,16 @@ a { color:#22c55e; }
 <p>Short URL: <a href="{{ short_url }}" target="_blank">{{ short_url }}</a></p>
 {% endif %}
 
-<h3>History</h3>
+<h3>Active URLs</h3>
 <table>
 <tr>
-<th>Code</th><th>Clicks</th><th>Status</th><th>Action</th>
+<th>Code</th><th>Clicks</th><th>Expires</th><th>Action</th>
 </tr>
 {% for h in history %}
 <tr>
 <td>{{ h.short_code }}</td>
 <td>{{ h.clicks }}</td>
-<td>
-{% if h.deleted %}
-Deleted
-{% elif h.expires_at and h.expires_at < now %}
-Expired
-{% else %}
-Active
-{% endif %}
-</td>
+<td>{{ h.expires_at or "Never" }}</td>
 <td>
 <form method="post" action="/delete/{{ h.short_code }}">
 <button class="delete">Delete</button>
@@ -178,7 +186,7 @@ Active
 </div>
 </body>
 </html>
-""", short_url=short_url, history=history, error=error, now=str(datetime.now()))
+""", short_url=short_url, history=history, error=error)
 
 @app.route("/delete/<short_code>", methods=["POST"])
 def delete_url(short_code):
@@ -192,6 +200,8 @@ def delete_url(short_code):
 
 @app.route("/<short_code>")
 def redirect_url(short_code):
+    cleanup_expired_urls()  # 🔥 AUTO CLEANUP
+
     with sqlite3.connect(DB_NAME) as conn:
         conn.row_factory = sqlite3.Row
         row = conn.execute(
@@ -202,9 +212,6 @@ def redirect_url(short_code):
         if not row or row["deleted"]:
             return "URL not found", 404
 
-        if row["expires_at"] and is_expired(row):
-            return "URL expired", 404
-
         conn.execute(
             "UPDATE urls SET clicks = clicks + 1 WHERE short_code=?",
             (short_code,)
@@ -212,6 +219,7 @@ def redirect_url(short_code):
         conn.commit()
         return redirect(row["long_url"])
 
+# ---------------- START ----------------
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 10000))
